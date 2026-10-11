@@ -1,26 +1,26 @@
+mod config;
+mod modules;
+mod utils;
+
 use axum::{
     Json, Router,
     http::{StatusCode, Uri},
     routing::get,
 };
-use serde_json::{Value, json};
-use sqlx::postgres::PgPoolOptions;
-use std::env;
-
-mod modules;
 use modules::auth::auth_routes;
+use serde_json::{Value, json};
 
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&db_url)
+    let pool = config::database::create_pool()
         .await
         .expect("Failed to connect to database");
 
-    println!("Berhasil terhubung ke database YugabyteDB!");
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("Failed to run migrations");
 
     let app = Router::new()
         .route("/", get(index))
